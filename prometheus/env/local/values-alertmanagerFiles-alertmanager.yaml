@@ -16,11 +16,6 @@ alertmanagerFiles:
           matchers:
             - severity=~"critical"
             - team="data"
-        - receiver: opsgenie-teamdevops
-          group_interval: 1m
-          continue: true         
-          matchers:
-            - severity=~"critical"
           mute_time_intervals:
             - offhours
             - saturday
