@@ -44,7 +44,7 @@ alertmanagerFiles:
       - name: data-critical
         slack_configs:
           - channel: '#general'
-            api_url: 
+            api_url: 'https://hooks.slack.com/services/REDACTED'
             send_resolved: true
             icon_url: 
             text: >-
