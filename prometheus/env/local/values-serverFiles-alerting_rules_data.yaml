@@ -1,0 +1,15 @@
+serverFiles:
+  ## Alerts configuration
+  ## Ref: https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/
+  alerting_rules_data.yml:
+    groups:
+      - name: Downtime
+        rules:
+        - alert: KubernetesPodNotHealthy
+          expr: sum by (namespace, pod) (kube_pod_status_phase{namespace!~"workflows.*|kube-system|airbyte-v2-prd", phase=~"Pending|Unknown|Failed"}) > 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: Kubernetes Pod not healthy (instance {{ $labels.instance }})
+            description: "Pod has been in a non-ready state for longer than 15 minutes.\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
