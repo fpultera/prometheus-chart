@@ -5,7 +5,7 @@ serverFiles:
     groups:
       - name: Downtime
         rules:
-        - alert: KubernetesPodNotHealthy
+        - alert: KubernetesPodNotHealthy_data
           expr: sum by (namespace, pod) (kube_pod_status_phase{namespace!~"workflows.*|kube-system|airbyte-v2-prd", phase=~"Pending|Unknown|Failed"}) > 0
           for: 5m
           labels:
