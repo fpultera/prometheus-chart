@@ -1,0 +1,128 @@
+## alertmanager ConfigMap entries
+##
+alertmanagerFiles:
+  alertmanager.yml:
+    route:
+      group_wait: 10s
+      group_interval: 5m
+      receiver: default-receiver
+      repeat_interval: 3h
+      routes:
+        - receiver: dev
+          group_wait: 10s
+          match_re:
+            alertname: SubscriptionLagDEV|EventStoreStatusDEV|EventStoreCpuDEV|EventStoreMemDEV
+          continue: true
+        - receiver: stg
+          group_wait: 10s
+          match_re:
+            alertname: SubscriptionLagSTG|EventStoreStatusSTG|EventStoreCpuSTG|EventStoreMemSTG
+          continue: true
+        - receiver: tech-factoring-monitoring
+          group_wait: 10s
+          match_re:
+            alertname: pendingExecution|invoiceAdvanceRequestFailed
+          continue: true
+        - receiver: prd
+          group_wait: 10s
+          match_re:
+            alertname: hasuraTokenDelete
+          continue: true
+        - receiver: opsgenie-teamdevops
+          group_wait: 10s
+          match_re:
+            alertname: hasuraTokenDelete
+          continue: true
+          
+
+    receivers:
+      - name: opsgenie-teamdevops
+        opsgenie_configs:
+          - send_resolved: true
+            http_config: {}
+            api_key_file: /etc/secrets/api-key
+            message: '{{ template "opsgenie.default.message" . }}'
+            description: '{{ template "opsgenie.default.description" . }}'
+            source: '{{ template "opsgenie.default.source" . }}'
+            responders:
+            - name: Devops_escalation
+              type: escalation
+            priority: 'P1'
+          
+      - name: default-receiver
+        slack_configs:
+          - channel: '#devops-alerts-prd'
+            api_url: 'https://hooks.slack.com/services/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0'
+            send_resolved: true
+            icon_url: https://avatars3.githubusercontent.com/u/3380462
+            text: >-
+              {{ range .Alerts }}
+                *Alert:* {{ .Annotations.summary }} - `{{ .Labels.severity }}`
+                *Description:* {{ .Annotations.description }}
+                *Graph:* <{{ .GeneratorURL }}|:chart_with_upwards_trend:> *Runbook:* <{{ .Annotations.runbook }}|:spiral_note_pad:>
+                *Details:*
+                {{ range .Labels.SortedPairs }} • *{{ .Name }}:* `{{ .Value }}`
+                {{ end }}
+              {{ end }}
+
+      - name: dev
+        slack_configs:
+          - channel: '#devops-alerts-dev'
+            api_url: 'https://hooks.slack.com/services/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'
+            send_resolved: true
+            icon_url: https://avatars3.githubusercontent.com/u/3380462
+            text: >-
+              {{ range .Alerts }}
+                *Alert:* {{ .Annotations.summary }} - `{{ .Labels.severity }}`
+                *Description:* {{ .Annotations.description }}
+                *Graph:* <{{ .GeneratorURL }}|:chart_with_upwards_trend:> *Runbook:* <{{ .Annotations.runbook }}|:spiral_note_pad:>
+                *Details:*
+                {{ range .Labels.SortedPairs }} • *{{ .Name }}:* `{{ .Value }}`
+                {{ end }}
+              {{ end }}
+        
+      - name: stg
+        slack_configs:
+          - channel: '#devops-alerts-stg'
+            api_url: 'https://hooks.slack.com/services/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'
+            send_resolved: true
+            icon_url: https://avatars3.githubusercontent.com/u/3380462
+            text: >-
+              {{ range .Alerts }}
+                *Alert:* {{ .Annotations.summary }} - `{{ .Labels.severity }}`
+                *Description:* {{ .Annotations.description }}
+                *Graph:* <{{ .GeneratorURL }}|:chart_with_upwards_trend:> *Runbook:* <{{ .Annotations.runbook }}|:spiral_note_pad:>
+                *Details:*
+                {{ range .Labels.SortedPairs }} • *{{ .Name }}:* `{{ .Value }}`
+                {{ end }}
+              {{ end }}
+
+      - name: prd
+        slack_configs:
+          - channel: '#devops-alerts-prd'
+            api_url: 'https://hooks.slack.com/services/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'
+            send_resolved: true
+            icon_url: https://avatars3.githubusercontent.com/u/3380462
+            text: >-
+              {{ range .Alerts }}
+                *Alert:* {{ .Annotations.summary }} - `{{ .Labels.severity }}`
+                *Description:* {{ .Annotations.description }}
+                *Graph:* <{{ .GeneratorURL }}|:chart_with_upwards_trend:> *Runbook:* <{{ .Annotations.runbook }}|:spiral_note_pad:>
+                *Details:*
+                {{ range .Labels.SortedPairs }} • *{{ .Name }}:* `{{ .Value }}`
+                {{ end }}
+              {{ end }}
+
+      - name: tech-factoring-monitoring
+        slack_configs:
+          - channel: '#tech-factoring-monitoring'
+            api_url: https://hooks.slack.com/services/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
+            icon_url: https://avatars3.githubusercontent.com/u/3380462
+            text: >-
+              {{ range .Alerts }}
+                *Alert:* {{ .Annotations.summary }}
+                *Description:* {{ .Annotations.description }}
+                *Graph:* <{{ .GeneratorURL }}|:chart_with_upwards_trend:> *Runbook:* <{{ .Annotations.runbook }}|:spiral_note_pad:>
+                *Details:*
+                  `{{ .Labels.severity }}`
+              {{ end }}

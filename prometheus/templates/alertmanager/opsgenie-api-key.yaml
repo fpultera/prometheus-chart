@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: alertmanager-opsgenie-api-key-devops
+type: Opaque
+data:
+  api-key: NzdlMmQyYWItZGFjYS00ZTAwLTkyZmEtZTU5ODYzNWYwZGEz

@@ -1,0 +1,52 @@
+# nodeExporter:
+#   enabled: true
+#   tolerations:
+#     - key: dedicated
+#       operator: Equal
+#       value: monitoring
+#       effect: NoSchedule
+#     - key: dedicated
+#       operator: Equal
+#       value: preemptible
+#       effect: NoSchedule
+
+# pushgateway:
+#   nodeSelector:
+#     "nodetype": monitoring
+#   tolerations:
+#     - key: dedicated
+#       operator: Equal
+#       value: monitoring
+#       effect: NoSchedule
+      
+alertmanager:
+  # nodeSelector:
+  #   "nodetype": monitoring
+  # tolerations:
+  #   - key: dedicated
+  #     operator: Equal
+  #     value: monitoring
+  #     effect: NoSchedule
+  extraSecretMounts:
+     - name: opsgenie-teamdevops
+       mountPath: /etc/secrets
+       subPath: ""
+       secretName: alertmanager-opsgenie-api-key-devops
+       readOnly: true
+  image:
+    repository: quay.io/prometheus/alertmanager
+    tag: v0.24.0
+    pullPolicy: IfNotPresent
+
+server:
+  nodeSelector:
+    cloud.google.com/gke-nodepool: stable
+  tolerations:
+  - key: stable-node-pool
+    operator: Equal
+    value: "true"
+    effect: NoSchedule
+  retention: 7d
+  persistentVolume:
+    enabled: true
+    size: 20Gi

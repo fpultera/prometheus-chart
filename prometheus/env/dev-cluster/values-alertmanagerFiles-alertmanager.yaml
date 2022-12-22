@@ -1,0 +1,59 @@
+## alertmanager ConfigMap entries
+##
+alertmanagerFiles:
+  alertmanager.yml:
+    route:
+      group_wait: 10s
+      group_interval: 5m
+      receiver: default-receiver
+      repeat_interval: 3h
+      routes:
+        - receiver: default-receiver
+          group_wait: 10s
+          continue: true
+
+    receivers:
+      - name: default-receiver
+        slack_configs:
+          - channel: '#devops-alerts-dev'
+            api_url: 'https://hooks.slack.com/services/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'
+            send_resolved: true
+            icon_url: https://avatars3.githubusercontent.com/u/3380462
+            text: >-
+              {{ range .Alerts }}
+                *Alert:* {{ .Annotations.summary }} - `{{ .Labels.severity }}`
+                *Description:* {{ .Annotations.description }}
+                *Graph:* <{{ .GeneratorURL }}|:chart_with_upwards_trend:> *Runbook:* <{{ .Annotations.runbook }}|:spiral_note_pad:>
+                *Details:*
+                {{ range .Labels.SortedPairs }} • *{{ .Name }}:* `{{ .Value }}`
+                {{ end }}
+              {{ end }}
+
+      - name: dev
+        slack_configs:
+          - channel: '#devops-alerts-dev'
+            api_url: 'https://hooks.slack.com/services/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'
+            send_resolved: true
+            icon_url: https://avatars3.githubusercontent.com/u/3380462
+            text: >-
+              {{ range .Alerts }}
+                *Alert:* {{ .Annotations.summary }} - `{{ .Labels.severity }}`
+                *Description:* {{ .Annotations.description }}
+                *Graph:* <{{ .GeneratorURL }}|:chart_with_upwards_trend:> *Runbook:* <{{ .Annotations.runbook }}|:spiral_note_pad:>
+                *Details:*
+                {{ range .Labels.SortedPairs }} • *{{ .Name }}:* `{{ .Value }}`
+                {{ end }}
+              {{ end }}
+
+      - name: opsgenie-teamdevops
+        opsgenie_configs:
+        - send_resolved: true
+          http_config: {}
+          api_key_file: /etc/secrets/api-key
+          message: '{{ template "opsgenie.default.message" . }}'
+          description: '{{ template "opsgenie.default.description" . }}'
+          source: '{{ template "opsgenie.default.source" . }}'
+          responders:
+          - name: Devops_escalation
+            type: escalation
+          priority: 'P5'

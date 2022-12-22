@@ -1,0 +1,288 @@
+serverFiles:
+  ## Alerts configuration
+  ## Ref: https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/
+  alerting_rules.yml:
+    groups:
+      - name: Downtime
+        rules:
+        - alert: KubernetesPodNotHealthy
+          expr: sum by (namespace, pod) (kube_pod_status_phase{namespace!~"workflows.*|kube-system|airbyte-v2-prd", phase=~"Pending|Unknown|Failed", pod!~".*snowflake-sync-.*|.*hubspot-read.*"}) > 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: Kubernetes Pod not healthy (instance {{ $labels.instance }})
+            description: "Pod has been in a non-ready state for longer than 15 minutes.\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+    
+        - alert: KubernetesPodCrashLooping
+          expr: increase(kube_pod_container_status_restarts_total{namespace!~"airbyte-v2-prd"}[1m]) > 3
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: Kubernetes pod crash looping (instance {{ $labels.instance }})
+            description: "Pod {{ $labels.pod }} is crash looping\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+
+        - alert: statefulsetDown
+          # Condition for alerting
+          expr: up{cloud_google_com_gke_preemptible!="true", statefulset_kubernetes_io_pod_name !=""} == 0
+          for: 1m
+          # Annotation - additional informational labels to store more information
+          annotations:
+            title: 'Instance {{ $labels.instance }} down'
+            description: '{{ $labels.instance }} of job {{ $labels.job }} has been down for more than 1 minute.'
+          # Labels - additional labels to be attached to the alert
+          labels:
+            severity: 'critical'
+  
+      - name: Containers
+        rules:
+        - alert: ContainerCpuUsage
+          expr: ((sum(rate(container_cpu_usage_seconds_total{namespace=~"prd", image!="", container!="POD", image!=""}[3m]))  by (pod) * 100)) > 70
+          for: 1m
+          labels:
+            severity: 'critical'
+          annotations:
+            title: 'Container CPU usage (instance {{ $labels.namespace }}) {{ $labels.pod }}'
+            description: 'Container CPU usage is above 70%'
+        - alert: ContainerMemoryUsage
+          expr: sum(rate(container_cpu_usage_seconds_total{namespace=~"prd", namespace!="airbyte-v2-prd"}[5m])) by (pod) > 3.0e+09
+          for: 1m
+          labels:
+            severity: 'critical'
+          annotations:
+            title: 'High Memory Usage'
+            description: 'High Memory Usage (instance {{ $labels.namespace }}) {{ $labels.pod }}'
+        - alert: ContainerRestarts
+          expr: delta(kube_pod_container_status_restarts_total{namespace=~"prd", namespace!="airbyte-v2-prd"}[1h]) >= 1
+          for: 10s
+          labels:
+            severity: 'critical'
+          annotations:
+            summary: 'Containers are restarting'
+            description: 'The container {{ $labels.container }} in pod {{ $labels.pod }}
+              has restarted at least {{ humanize $value}} times in the last hour on instance
+              {{ $labels.instance }}.'
+            
+
+      - name: K8S
+        rules:
+        - alert: NodeHighCpuLoad
+          expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+          for: 5m
+          labels:
+            severity: 'critical'
+          annotations:
+            title: 'Host high CPU load (instance {{ $labels.instance }})'
+            description: 'CPU load is > 80%\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}'
+        - alert: NodeOutOfMemory
+          expr: node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes * 100 < 10
+          for: 5m
+          labels:
+            severity: 'critical'
+          annotations:
+            title: 'Host out of memory (instance {{ $labels.instance }})'
+            description: 'Node memory is filling up (< 10% left)\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}'
+
+        - alert: ExternalSecretsPRD
+          expr: count(externalsecret_sync_calls_error{namespace!="default"}) by (namespace, name) >= 1
+          for: 5m
+          labels:
+            severity: 'critical'
+          annotations:
+            summary: SecretSyncError PRD {{ $labels.name }}
+            description: 'Synchronization of the Secret {{ $labels.name }} in namespace {{ $labels.namespace }} is failing.'
+        
+        - alert: PulsarMesssageBacklogPRD
+          expr: sum(pulsar_msg_backlog{topic!~".*DisbursementIntegration"}) by (kubernetes_pod_name,topic) >= 10 and ON() hour() > 10
+          for: 5m
+          labels:
+            severity: 'critical'
+          annotations:
+            summary: PulsarMessageBacklog PRD {{ $labels.name }}
+            description: 'There are messages in pulsar queue for 5 minutes.'
+
+        - alert: PulsarMesssageBacklogPRDDisbursement
+          expr: sum(pulsar_msg_backlog{topic=~".*DisbursementIntegration"}) by (kubernetes_pod_name,topic) >= 1 and ON() hour() > 10
+          for: 5m
+          labels:
+            severity: 'critical'
+          annotations:
+            summary: PulsarMessageBacklog PRD {{ $labels.name }}
+            description: 'There are messages in pulsar queue for 5 minutes.'
+            team: U01C1BK2H0U
+
+      - name: EventStorePrd
+        rules:
+        - alert: SubscriptionLag1000Prod
+          expr: (sum(eventstore_subscription_last_known_event_number) by (event_stream_id, group_name) - sum(eventstore_subscription_last_processed_event_number) by (event_stream_id, group_name)) >= 1000
+          for: 5m
+          labels:
+            severity: 'critical'
+          annotations:
+            summary: 'Subscription lag (instance {{ $labels.instance }})'
+            description: 'Subscription lag is > 1000\n  VALUE = {{ $value }}\n  LABELS: {{ $labels.event_stream_id }} {{ $labels.group_name }}'
+
+        - alert: SubscriptionLag50Prod
+          expr: (sum(eventstore_subscription_last_known_event_number) by (event_stream_id, group_name) - sum(eventstore_subscription_last_processed_event_number) by (event_stream_id, group_name)) >= 1000
+          for: 10m
+          labels:
+            severity: 'critical'
+          annotations:
+            summary: 'Subscription lag (instance {{ $labels.instance }})'
+            description: 'Subscription lag is > 50\n  VALUE = {{ $value }}\n  LABELS: {{ $labels.event_stream_id }} {{ $labels.group_name }}' 
+
+        - alert: EventStoreStatusPRD
+          expr: sum(eventstore_up) < 1
+          for: 5m
+          labels:
+            severity: 'critical'
+          annotations:
+            title: 'EventStore Exporter Status Prod (instance {{ $labels.instance }})'
+            description: 'EventStore Exporter Status Prod\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}'
+
+      - name: Pulsar
+        rules:   
+        - alert: PulsarSubscriptionHighNumberOfBacklogEntries-PRD
+          expr: sum(pulsar_subscription_back_log) by (subscription) > 5000
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: Pulsar subscription high number of backlog entries (instance {{ $labels.instance }})
+            description: "The number of subscription backlog entries is over 5k\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+
+        - alert: PulsarSubscriptionVeryHighNumberOfBacklogEntries-PRD
+          expr: sum(pulsar_subscription_back_log) by (subscription) > 100000
+          for: 1h
+          labels:
+            severity: critical
+          annotations:
+            summary: Pulsar subscription very high number of backlog entries (instance {{ $labels.instance }})
+            description: "The number of subscription backlog entries is over 100k\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+
+        - alert: PulsarTopicLargeBacklogStorageSize-PRD
+          expr: sum(pulsar_storage_size > 5*1024*1024*1024) by (topic)
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: Pulsar topic large backlog storage size (instance {{ $labels.instance }})
+            description: "The topic backlog storage size is over 5 GB\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+
+        - alert: PulsarTopicVeryLargeBacklogStorageSize-PRD
+          expr: sum(pulsar_storage_size > 20*1024*1024*1024) by (topic)
+          for: 1h
+          labels:
+            severity: critical
+          annotations:
+            summary: Pulsar topic very large backlog storage size (instance {{ $labels.instance }})
+            description: "The topic backlog storage size is over 20 GB\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+
+        - alert: PulsarHighWriteLatency-PRD
+          expr: sum(pulsar_storage_write_latency_overflow > 0) by (topic)
+          for: 1h
+          labels:
+            severity: critical
+          annotations:
+            summary: Pulsar high write latency (instance {{ $labels.instance }})
+            description: "Messages cannot be written in a timely fashion\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+
+        - alert: PulsarLargeMessagePayload-PRD
+          expr: sum(pulsar_entry_size_overflow > 0) by (topic)
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: Pulsar large message payload (instance {{ $labels.instance }})
+            description: "Observing large message payload (> 1MB)\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+
+        - alert: PulsarHighLedgerDiskUsage-PRD
+          expr: sum(bookie_ledger_dir__pulsar_data_bookkeeper_ledgers_usage) by (kubernetes_pod_name) > 75
+          for: 1h
+          labels:
+            severity: critical
+          annotations:
+            summary: Pulsar high ledger disk usage (instance {{ $labels.instance }})
+            description: "Observing Ledger Disk Usage (> 75%)\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+
+        - alert: PulsarReadOnlyBookies-PRD
+          expr: count(bookie_SERVER_STATUS{} == 0) by (pod)
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: Pulsar read only bookies (instance {{ $labels.instance }})
+            description: "Observing Readonly Bookies\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+
+        - alert: PulsarHighNumberOfFunctionErrors-PRD
+          expr: sum((rate(pulsar_function_user_exceptions_total{}[1m]) + rate(pulsar_function_system_exceptions_total{}[1m])) > 10) by (name)
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: Pulsar high number of function errors (instance {{ $labels.instance }})
+            description: "Observing more than 10 Function errors per minute\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+
+        - alert: PulsarHighNumberOfSinkErrors-PRD
+          expr: sum(rate(pulsar_sink_sink_exceptions_total{}[1m]) > 10) by (name)
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: Pulsar high number of sink errors (instance {{ $labels.instance }})
+            description: "Observing more than 10 Sink errors per minute\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+
+        - alert: IstioKubernetesGatewayAvailabilityDrop
+          expr: min(kube_deployment_status_replicas_available{ deployment=~"istio-.*", namespace="istio-system"}) without (instance, pod) < 2
+          for: 1m
+          labels:
+            severity: warning
+          annotations:
+            summary: Istio Kubernetes gateway availability drop (instance {{ $labels.instance }})
+            description: "Gateway pods have dropped. Inbound traffic will likely be affected.\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+        
+        - alert: IstioHighTotalRequestRate
+          expr: sum(rate(istio_requests_total{reporter="destination"}[5m])) > 1000
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: Istio high total request rate (instance {{ $labels.instance }})
+            description: "Global request rate in the service mesh is unusually high.\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+
+        - alert: IstioHigh4xxErrorRate
+          expr: sum(rate(istio_requests_total{reporter="destination",response_code=~"4.*"}[5m])) by (destination_service) / sum(rate(istio_requests_total{reporter="destination"}[5m])) by (destination_service) * 100 > 5
+          for: 1m
+          labels:
+            severity: warning
+          annotations:
+            summary: Istio high 4xx error rate (instance {{ $labels.instance }})
+            description: "High percentage of HTTP 4xx responses in Istio (> 5%).\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+
+        - alert: IstioHigh5xxErrorRate
+          expr: sum(rate(istio_requests_total{reporter="destination", response_code=~"5.*"}[5m])) by (destination_service) / sum(rate(istio_requests_total{reporter="destination"}[5m])) by (destination_service) * 100 > 5
+          for: 1m
+          labels:
+            severity: warning
+          annotations:
+            summary: Istio high 5xx error rate (instance {{ $labels.instance }})
+            description: "High percentage of HTTP 5xx responses in Istio (> 5%).\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+
+        - alert: IstioHighRequestLatency
+          expr: rate(istio_request_duration_milliseconds_sum{reporter="destination"}[1m]) / rate(istio_request_duration_milliseconds_count{reporter="destination"}[1m]) > 100
+          for: 1m
+          labels:
+            severity: warning
+          annotations:
+            summary: Istio high request latency (instance {{ $labels.instance }})
+            description: "Istio average requests execution is longer than 100ms.\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+        
+        - alert: IstioLatency99Percentile
+          expr: histogram_quantile(0.99, sum(rate(istio_request_duration_milliseconds_bucket[1m])) by (destination_canonical_service, destination_workload_namespace, source_canonical_service, source_workload_namespace, le)) > 1
+          for: 1m
+          labels:
+            severity: warning
+          annotations:
+            summary: Istio latency 99 percentile (instance {{ $labels.instance }})
+            description: "Istio 1% slowest requests are longer than 1s.\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"

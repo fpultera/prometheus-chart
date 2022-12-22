@@ -1,0 +1,168 @@
+serverFiles:
+  ## Alerts configuration
+  ## Ref: https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/
+  alerting_rules.yml:
+    groups:
+      - name: Downtime
+        rules:
+        - alert: Down
+          # Condition for alerting
+          expr: up{cloud_google_com_gke_preemptible!="true"} == 0
+          for: 1m
+          # Annotation - additional informational labels to store more information
+          annotations:
+            title: 'Instance {{ $labels.instance }} down'
+            description: '{{ $labels.instance }} of job {{ $labels.job }} has been down for more than 1 minute.'
+          # Labels - additional labels to be attached to the alert
+          labels:
+            severity: 'critical'
+
+
+      - name: Containers
+        rules:
+        - alert: ContainerCpuUsage
+          expr: ((sum(rate(container_cpu_usage_seconds_total{namespace=~"prod", image!="", container!="POD", image!=""}[3m]))  by (pod) * 100)) > 70
+          for: 1m
+          labels:
+            severity: 'critical'
+          annotations:
+            title: 'Container CPU usage (instance {{ $labels.namespace }}) {{ $labels.pod }}'
+            description: 'Container CPU usage is above 70%. See http://grafana.mundi.work/d/TdH-OW77k/microservices-status?orgId=1&var-namespace={{ $labels.namespace }})&var-deployment={{ $labels.deployment }})&var-container=All'
+        - alert: ContainerMemoryUsage
+          expr: sum(rate(container_cpu_usage_seconds_total{namespace="prod"}[5m])) by (pod) > 3.0e+09
+          for: 1m
+          labels:
+            severity: 'critical'
+          annotations:
+            title: 'High Memory Usage'
+            description: 'High Memory Usage (instance {{ $labels.namespace }}) {{ $labels.pod }}. See http://grafana.mundi.work/d/TdH-OW77k/microservices-status?orgId=1&var-namespace={{ $labels.namespace }})&var-deployment={{ $labels.deployment }})&var-container=All'
+        - alert: ContainerRestarts
+          expr: delta(kube_pod_container_status_restarts_total{namespace="prod"}[1h]) >= 1
+          for: 10s
+          labels:
+            severity: 'critical'
+          annotations:
+            summary: 'Containers are restarting'
+            description: 'The container {{ $labels.container }} in pod {{ $labels.pod }}
+              has restarted at least {{ humanize $value}} times in the last hour on instance
+              {{ $labels.instance }}. See http://grafana.mundi.work/d/TdH-OW77k/microservices-status?orgId=1&var-namespace={{ $labels.namespace }})&var-deployment={{ $labels.deployment }})&var-container=All'
+            
+
+      - name: K8S
+        rules:
+        - alert: NodeHighCpuLoad
+          expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+          for: 5m
+          labels:
+            severity: 'critical'
+          annotations:
+            title: 'Host high CPU load (instance {{ $labels.instance }})'
+            description: 'CPU load is > 80%\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}'
+        - alert: NodeOutOfMemory
+          expr: node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes * 100 < 10
+          for: 5m
+          labels:
+            severity: 'critical'
+          annotations:
+            title: 'Host out of memory (instance {{ $labels.instance }})'
+            description: 'Node memory is filling up (< 10% left)\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}'
+    
+      - name: pg_mundi
+        rules:
+        - alert: pendingExecution
+          expr: pg_mundi_invoice_advance_commands_count > 0
+          for: 20m
+          annotations:
+            title: 'Invoice advance commands status: pendingExecution'
+            description: 'db: mundi     schema: invoice_advance'
+          labels:
+            severity: 'warning'
+      
+      - name: pg_mundi_invoice_advance_request_failed
+        rules:
+        - alert: invoiceAdvanceRequestFailed
+          expr: pg_mundi_invoice_advance_request_failed_count > 0
+          for: 30m
+          annotations:
+            title: 'Invoice advance requests commands status: failed'
+            description: 'Advance requests failed in the last 20 min'
+          labels:
+            severity: 'warning'
+
+      - name: EventStore
+        rules:
+        - alert: SubscriptionLagDEV
+          expr: (sum(eventstore_subscription_last_known_event_number{job="eventstore-exporter-dev"}) by (event_stream_id, group_name) - sum(eventstore_subscription_last_processed_event_number{job="eventstore-exporter-dev"}) by (event_stream_id, group_name)) > 1000
+          for: 5m
+          labels:
+            severity: 'critical'
+          annotations:
+            title: 'Subscription lag (instance {{ $labels.instance }})'
+            description: 'Subscription lag is > 1000\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}'
+        - alert: SubscriptionLagSTG
+          expr: (sum(eventstore_subscription_last_known_event_number{job="eventstore-exporter-stage"}) by (event_stream_id, group_name) - sum(eventstore_subscription_last_processed_event_number{job="eventstore-exporter-stage"}) by (event_stream_id, group_name)) > 1000
+          for: 5m
+          labels:
+            severity: 'critical'
+          annotations:
+            title: 'Subscription lag (instance {{ $labels.instance }})'
+            description: 'Subscription lag is > 1000\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}'
+        - alert: EventStoreStatusDEV
+          expr: sum(eventstore_up{job="eventstore-exporter-dev"}) < 1
+          for: 5m
+          labels:
+            severity: 'critical'
+          annotations:
+            title: 'EventStore Exporter Status Dev (instance {{ $labels.instance }})'
+            description: 'EventStore Exporter Status Dev\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}'
+        - alert: EventStoreStatusSTG
+          expr: sum(eventstore_up{job="eventstore-exporter-stage"}) < 1
+          for: 5m
+          labels:
+            severity: 'critical'
+          annotations:
+            title: 'EventStore Exporter Status Stage (instance {{ $labels.instance }})'
+            description: 'EventStore Exporter Status Stage\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}'
+        - alert: EventStoreCpuDEV
+          expr: sum(eventstore_process_cpu{job="eventstore-exporter-dev"}) > 2
+          for: 5m
+          labels:
+            severity: 'critical'
+          annotations:
+            title: 'EventStore Exporter Cpu Dev (instance {{ $labels.instance }})'
+            description: 'EventStore Exporter Cpu Dev\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}'
+        - alert: EventStoreCpuSTG
+          expr: sum(eventstore_process_cpu{job="eventstore-exporter-stage"}) > 2
+          for: 5m
+          labels:
+            severity: 'critical'
+          annotations:
+            title: 'EventStore Exporter Cpu Stage (instance {{ $labels.instance }})'
+            description: 'EventStore Exporter Cpu Stage\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}'
+        - alert: EventStoreMemDEV
+          expr: sum(eventstore_process_memory_bytes{job="eventstore-exporter-dev"}) > 1073741824
+          for: 5m
+          labels:
+            severity: 'critical'
+          annotations:
+            title: 'EventStore Exporter Mem Dev (instance {{ $labels.instance }})'
+            description: 'EventStore Exporter Mem Dev VALUE > 1GB LABELS: {{ $labels }}'
+        - alert: EventStoreMemSTG
+          expr: sum(eventstore_process_memory_bytes{job="eventstore-exporter-stage"}) > 1073741824
+          for: 5m
+          labels:
+            severity: 'critical'
+          annotations:
+            title: 'EventStore Exporter Mem Stage (instance {{ $labels.instance }})'
+            description: 'EventStore Exporter Mem Stage VALUE > 1GB LABELS: {{ $labels }}'
+
+      - name: pg_alert_count_hasura_session_count
+        rules:
+        - alert: hasuraTokenDelete
+          expr: pg_alert_count_hasura_session_count < 1
+          for: 1m
+          annotations:
+            title: 'Hasura Token delete from database.'
+            description: 'Check notion for workarround: https://www.notion.so/mundi/workaround-token-hasura-49983c48b91e403190c181281d84a811'
+          labels:
+            severity: 'critical'

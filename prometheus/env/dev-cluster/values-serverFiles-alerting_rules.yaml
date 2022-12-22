@@ -1,0 +1,175 @@
+serverFiles:
+  ## Alerts configuration
+  ## Ref: https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/
+  alerting_rules.yml:
+    groups:
+      - name: Downtime
+        rules:
+        - alert: KubernetesPodNotHealthy
+          expr: sum by (namespace, pod) (kube_pod_status_phase{namespace!~"workflows.*|kube-system", phase=~"Pending|Unknown|Failed", pod!~".*snowflake-sync-.*"}) > 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: Kubernetes Pod not healthy (instance {{ $labels.instance }})
+            description: "Pod has been in a non-ready state for longer than 15 minutes.\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+    
+        - alert: KubernetesPodCrashLooping
+          expr: increase(kube_pod_container_status_restarts_total[1m]) > 3
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: Kubernetes pod crash looping (instance {{ $labels.instance }})
+            description: "Pod {{ $labels.pod }} is crash looping\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+
+      - name: Containers
+        rules:
+        - alert: ContainerCpuUsage
+          expr: ((sum(rate(container_cpu_usage_seconds_total{namespace=~"dev", image!="", container!="POD", image!=""}[3m]))  by (pod) * 100)) > 70
+          for: 1m
+          labels:
+            severity: 'critical'
+          annotations:
+            title: 'Container CPU usage (instance {{ $labels.namespace }}) {{ $labels.pod }}'
+            description: 'Container CPU usage is above 70%'
+        - alert: ContainerMemoryUsage
+          expr: sum(rate(container_cpu_usage_seconds_total{namespace="dev"}[5m])) by (pod) > 3.0e+09
+          for: 1m
+          labels:
+            severity: 'critical'
+          annotations:
+            title: 'High Memory Usage'
+            description: 'High Memory Usage (instance {{ $labels.namespace }}) {{ $labels.pod }}'
+        - alert: ContainerRestarts
+          expr: delta(kube_pod_container_status_restarts_total{namespace="dev"}[1h]) >= 1
+          for: 10s
+          labels:
+            severity: 'critical'
+          annotations:
+            summary: 'Containers are restarting'
+            description: 'The container {{ $labels.container }} in pod {{ $labels.pod }}
+              has restarted at least {{ humanize $value}} times in the last hour on instance
+              {{ $labels.instance }}.'
+            
+
+      - name: K8S
+        rules:
+        - alert: NodeHighCpuLoad
+          expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+          for: 5m
+          labels:
+            severity: 'critical'
+          annotations:
+            title: 'Host high CPU load (instance {{ $labels.instance }})'
+            description: 'CPU load is > 80%\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}'
+        - alert: NodeOutOfMemory
+          expr: node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes * 100 < 10
+          for: 5m
+          labels:
+            severity: 'critical'
+          annotations:
+            title: 'Host out of memory (instance {{ $labels.instance }})'
+            description: 'Node memory is filling up (< 10% left)\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}'
+
+        - alert: ExternalSecretsDev
+          expr: count(externalsecret_sync_calls_error{namespace!="default"}) by (namespace, name) >= 1
+          for: 1h
+          labels:
+            severity: 'critical'
+          annotations:
+            summary: SecretSyncError {{ $labels.name }}
+            description: 'Synchronization of the Secret {{ $labels.name }} in namespace {{ $labels.namespace }} is failing.'
+            
+            
+      - name: Pulsar
+        rules:   
+        - alert: PulsarSubscriptionHighNumberOfBacklogEntries
+          expr: sum(pulsar_subscription_back_log) by (subscription) > 5000
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: Pulsar subscription high number of backlog entries (instance {{ $labels.instance }})
+            description: "The number of subscription backlog entries is over 5k\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+
+        - alert: PulsarSubscriptionVeryHighNumberOfBacklogEntries
+          expr: sum(pulsar_subscription_back_log) by (subscription) > 100000
+          for: 1h
+          labels:
+            severity: critical
+          annotations:
+            summary: Pulsar subscription very high number of backlog entries (instance {{ $labels.instance }})
+            description: "The number of subscription backlog entries is over 100k\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+
+        - alert: PulsarTopicLargeBacklogStorageSize
+          expr: sum(pulsar_storage_size > 5*1024*1024*1024) by (topic)
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: Pulsar topic large backlog storage size (instance {{ $labels.instance }})
+            description: "The topic backlog storage size is over 5 GB\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+
+        - alert: PulsarTopicVeryLargeBacklogStorageSize
+          expr: sum(pulsar_storage_size > 20*1024*1024*1024) by (topic)
+          for: 1h
+          labels:
+            severity: critical
+          annotations:
+            summary: Pulsar topic very large backlog storage size (instance {{ $labels.instance }})
+            description: "The topic backlog storage size is over 20 GB\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+
+        - alert: PulsarHighWriteLatency
+          expr: sum(pulsar_storage_write_latency_overflow > 0) by (topic)
+          for: 1h
+          labels:
+            severity: critical
+          annotations:
+            summary: Pulsar high write latency (instance {{ $labels.instance }})
+            description: "Messages cannot be written in a timely fashion\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+
+        - alert: PulsarLargeMessagePayload
+          expr: sum(pulsar_entry_size_overflow > 0) by (topic)
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: Pulsar large message payload (instance {{ $labels.instance }})
+            description: "Observing large message payload (> 1MB)\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+
+        - alert: PulsarHighLedgerDiskUsage
+          expr: sum(bookie_ledger_dir__pulsar_data_bookkeeper_ledgers_usage) by (kubernetes_pod_name) > 75
+          for: 1h
+          labels:
+            severity: critical
+          annotations:
+            summary: Pulsar high ledger disk usage (instance {{ $labels.instance }})
+            description: "Observing Ledger Disk Usage (> 75%)\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+
+        - alert: PulsarReadOnlyBookies
+          expr: count(bookie_SERVER_STATUS{} == 0) by (pod)
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: Pulsar read only bookies (instance {{ $labels.instance }})
+            description: "Observing Readonly Bookies\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+
+        - alert: PulsarHighNumberOfFunctionErrors
+          expr: sum((rate(pulsar_function_user_exceptions_total{}[1m]) + rate(pulsar_function_system_exceptions_total{}[1m])) > 10) by (name)
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: Pulsar high number of function errors (instance {{ $labels.instance }})
+            description: "Observing more than 10 Function errors per minute\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
+
+        - alert: PulsarHighNumberOfSinkErrors
+          expr: sum(rate(pulsar_sink_sink_exceptions_total{}[1m]) > 10) by (name)
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: Pulsar high number of sink errors (instance {{ $labels.instance }})
+            description: "Observing more than 10 Sink errors per minute\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
