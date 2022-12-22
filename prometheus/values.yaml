@@ -1308,6 +1308,7 @@ serverFiles:
   ## Alerts configuration
   ## Ref: https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/
   alerting_rules.yml: {}
+  alerting_rules_data.yml: {}
   # groups:
   #   - name: Instances
   #     rules:
@@ -1332,6 +1333,7 @@ serverFiles:
     rule_files:
       - /etc/config/recording_rules.yml
       - /etc/config/alerting_rules.yml
+      - /etc/config/alerting_rules_data.yml
     ## Below two files are DEPRECATED will be removed from this default values file
       - /etc/config/rules
       - /etc/config/alerts
