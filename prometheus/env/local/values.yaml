@@ -43,7 +43,7 @@ alertmanager:
     tag: v0.24.0
     pullPolicy: IfNotPresent
 
-server:
+# server:
   # nodeSelector:
   #   "nodetype": monitoring
   # tolerations:
