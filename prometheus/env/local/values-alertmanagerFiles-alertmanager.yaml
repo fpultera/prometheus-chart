@@ -1,0 +1,67 @@
+## alertmanager ConfigMap entries
+##
+alertmanagerFiles:
+  alertmanager.yml:
+    route:
+      group_wait: 1s
+      group_interval: 5m
+      group_by:
+        - '...'
+      receiver: default-receiver
+      repeat_interval: 4h
+      routes:
+        - receiver: data-critical
+          group_wait: 10s
+          continue: true
+          matchers:
+            - severity=~"critical"
+            - team="data"
+        - receiver: opsgenie-teamdevops
+          group_interval: 1m
+          continue: true         
+          matchers:
+            - severity=~"critical"
+          mute_time_intervals:
+            - offhours
+            - saturday
+            - sunday
+
+    time_intervals:
+      - name: offhours
+        time_intervals:
+          - weekdays: ['monday:friday']
+            times:
+              - start_time: 03:00
+                end_time: 10:00
+      - name: saturday
+        time_intervals:
+          - weekdays: ['saturday']
+            times:
+              - start_time: 03:00
+                end_time: 12:00
+      - name: sunday
+        time_intervals:
+          - weekdays: ['sunday']
+            times:
+              - start_time: 03:00
+                end_time: 14:00
+      
+                
+        
+    receivers:
+      - name: data-critical
+        slack_configs:
+          - channel: '#general'
+            api_url: 'https://hooks.slack.com/services/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'
+            send_resolved: true
+            icon_url: https://avatars3.githubusercontent.com/u/3380462
+            text: >-
+              {{ range .Alerts }}
+                *Alert:* {{ .Annotations.summary }} - `{{ .Labels.severity }}`
+                *Description:* {{ .Annotations.description }}
+                *Team:* <@{{ .Annotations.team }}>
+                *Graph:* <Esto Esta roto>
+                *Details:*
+                {{ range .Labels.SortedPairs }} • *{{ .Name }}:* `{{ .Value }}`
+                {{ end }}
+              {{ end }}

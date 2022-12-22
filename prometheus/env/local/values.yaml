@@ -1,0 +1,58 @@
+# nodeExporter:
+#   enabled: true
+#   tolerations:
+#     - key: dedicated
+#       operator: Equal
+#       value: monitoring
+#       effect: NoSchedule
+#     - key: dedicated
+#       operator: Equal
+#       value: preemptible
+#       effect: NoSchedule
+
+# pushgateway:
+#   nodeSelector:
+#     "nodetype": monitoring
+#   tolerations:
+#     - key: dedicated
+#       operator: Equal
+#       value: monitoring
+#       effect: NoSchedule
+      
+alertmanager:
+#   nodeSelector:
+#     "nodetype": monitoring
+#   tolerations:
+#     - key: dedicated
+#       operator: Equal
+#       value: monitoring
+#       effect: NoSchedule
+  # extraSecretMounts:
+  #    - name: opsgenie-teamdevops
+  #      mountPath: /etc/secrets
+  #      subPath: ""
+  #      secretName: alertmanager-opsgenie-api-key-devops
+  #      readOnly: true
+    #  - name: opsgenie-team-tech
+    #    mountPath: /etc/secrets/tech
+    #    subPath: ""
+    #    secretName: alertmanager-opsgenie-api-key-tech
+    #    readOnly: true
+  image:
+    repository: quay.io/prometheus/alertmanager
+    tag: v0.24.0
+    pullPolicy: IfNotPresent
+
+server:
+  # nodeSelector:
+  #   "nodetype": monitoring
+  # tolerations:
+  #   - key: dedicated
+  #     operator: Equal
+  #     value: monitoring
+  #     effect: NoSchedule
+  # retention: 7d
+  # persistentVolume:
+  #   enabled: true
+  #   size: 20Gi
+  #   existingClaim: "prometheus-prd-cluster-server"
