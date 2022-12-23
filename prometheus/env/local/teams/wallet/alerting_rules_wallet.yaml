@@ -1,14 +1,14 @@
 serverFiles:
-  teams/data/alerting_rules.yml:
+  alerting_rules.yml:
     groups:
       - name: Downtime
         rules:
-        - alert: KubernetesPodNotHealthyMainData
+        - alert: KubernetesPodNotHealthyMainWallet
           expr: sum by (namespace, pod) (kube_pod_status_phase{namespace!~"workflows.*|kube-system|airbyte-v2-prd", phase=~"Pending|Unknown|Failed", pod!~".*snowflake-sync-.*|.*hubspot-read.*"}) > 0
           for: 5m
           labels:
             severity: critical
-            team: data
+            team: wallet
           annotations:
             summary: Kubernetes Pod not healthy (instance {{ $labels.instance }})
             description: "Pod has been in a non-ready state for longer than 15 minutes.\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"
