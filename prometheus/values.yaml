@@ -1308,6 +1308,7 @@ serverFiles:
   ## Alerts configuration
   ## Ref: https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/
   alerting_rules.yml: {}
+  alerting_rules_data.yml: {}
   # groups:
   #   - name: Instances
   #     rules:
