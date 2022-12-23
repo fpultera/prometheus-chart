@@ -4,7 +4,7 @@ serverFiles:
     rule_files:
       - /etc/config/recording_rules.yml
       - /etc/config/alerting_rules.yml
-      - /etc/config/alerting_rules_*.yml
+      - /etc/config/alerting_rules_data.yml
       - /etc/config/rules
       - /etc/config/alerts
 
