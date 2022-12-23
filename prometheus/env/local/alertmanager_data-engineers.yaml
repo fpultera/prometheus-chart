@@ -1,0 +1,57 @@
+alertmanagerFiles:
+  alertmanager_data.yml:
+    route:
+      group_wait: 1s
+      group_interval: 5m
+      group_by:
+        - '...'
+      receiver: data-critical
+      repeat_interval: 4h
+      routes:
+        - receiver: data-engineers
+          group_wait: 10s
+          continue: true
+          matchers:
+            - severity=~"critical"
+            - team="data-engineers"
+          mute_time_intervals:
+            - offhours
+            - saturday
+            - sunday
+
+    time_intervals:
+      - name: offhours
+        time_intervals:
+          - weekdays: ['monday:friday']
+            times:
+              - start_time: 03:00
+                end_time: 10:00
+      - name: saturday
+        time_intervals:
+          - weekdays: ['saturday']
+            times:
+              - start_time: 03:00
+                end_time: 12:00
+      - name: sunday
+        time_intervals:
+          - weekdays: ['sunday']
+            times:
+              - start_time: 03:00
+                end_time: 14:00       
+    receivers:
+      - name: data-engineers
+        slack_configs:
+          - channel: '#channel-slack'
+            api_url: 'https://hooks.slack.com/services/REDACTED'
+            send_resolved: true
+            icon_url: 
+            text: >-
+              {{ range .Alerts }}
+                *Alert:* {{ .Annotations.summary }} - `{{ .Labels.severity }}`
+                *Description:* {{ .Annotations.description }}
+                *Team:* <@{{ .Annotations.team }}>
+                *Graph:* <Esto Esta roto>
+                *Details:*
+                {{ range .Labels.SortedPairs }} • *{{ .Name }}:* `{{ .Value }}`
+                {{ end }}
+              {{ end }}
