@@ -1332,7 +1332,7 @@ serverFiles:
     rule_files:
       - /etc/config/recording_rules.yml
       - /etc/config/alerting_rules.yml
-      - /etc/config/alerting_rules_data-engineers.yml
+      - /etc/config/alerting_rules_data.yml
     ## Below two files are DEPRECATED will be removed from this default values file
       - /etc/config/rules
       - /etc/config/alerts
