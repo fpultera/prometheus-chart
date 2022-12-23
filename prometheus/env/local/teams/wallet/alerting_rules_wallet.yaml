@@ -1,5 +1,5 @@
 serverFiles:
-  teams/wallet/alerting_rules.yml:
+  alerting_rules_wallet.yml:
     groups:
       - name: Downtime
         rules:
