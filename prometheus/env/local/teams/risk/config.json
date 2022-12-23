@@ -1,5 +1,5 @@
 {
-  "cluster": "localhost",
-  "env": "local",
-  "url": "https://kubernetes.default.svc"
+  "teams": {
+    "owner": "risk"
+  }
 }
