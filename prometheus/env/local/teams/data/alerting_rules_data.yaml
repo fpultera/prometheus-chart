@@ -1,5 +1,5 @@
 serverFiles:
-  teams/data/alerting_rules.yml:
+  alerting_rules.yml:
     groups:
       - name: Downtime
         rules:
