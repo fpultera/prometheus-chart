@@ -4,7 +4,7 @@ serverFiles:
     rule_files:
       - /etc/config/recording_rules.yml
       - /etc/config/alerting_rules.yml
-      - /etc/config/teams/data/*.yml
+      - /etc/config/teams/*/alerting_rules_*.yml
       - /etc/config/rules
       - /etc/config/alerts
 
