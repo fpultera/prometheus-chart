@@ -44,9 +44,7 @@ alertmanagerFiles:
       - name: data-critical
         slack_configs:
           - channel: '#general'
-            apiURL:
-              key: 'webhookURL'
-              name: 'slack-webhook'
+            apiURL: 'NULL'
             send_resolved: true
             icon_url: 
             text: >-
