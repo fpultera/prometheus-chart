@@ -44,7 +44,7 @@ alertmanagerFiles:
       - name: data-critical
         slack_configs:
           - channel: '#general'
-            apiURL: 'http://localhost'
+            api_url: 'http://localhost'
             send_resolved: true
             icon_url: 
             text: >-
